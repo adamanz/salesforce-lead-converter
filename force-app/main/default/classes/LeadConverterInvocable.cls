@@ -36,6 +36,9 @@ public with sharing class LeadConverterInvocable {
 
         @InvocableVariable(label='Overwrite Lead Source' description='Overwrite LeadSource on target contact')
         public Boolean overwriteLeadSource;
+
+        @InvocableVariable(label='Bypass Duplicate Rules' description='Set to true to bypass duplicate detection rules during conversion')
+        public Boolean bypassDuplicateRules;
     }
 
     /**
@@ -56,6 +59,9 @@ public with sharing class LeadConverterInvocable {
 
         @InvocableVariable(label='Error Message' description='Error details if conversion failed')
         public String errorMessage;
+
+        @InvocableVariable(label='Lead ID' description='The original Lead ID (returned on both success and failure)')
+        public Id leadId;
     }
 
     /**
@@ -66,71 +72,77 @@ public with sharing class LeadConverterInvocable {
     @InvocableMethod(label='Convert Lead' description='Converts a lead to an account, contact, and optionally an opportunity' category='Lead Management')
     public static List<LeadConvertResult> convertLeads(List<LeadConvertRequest> requests) {
         List<LeadConvertResult> results = new List<LeadConvertResult>();
-        
+
         // Get the default converted status if not provided
         String defaultConvertedStatus = getDefaultConvertedStatus();
-        
-        // Process each conversion request
-        List<Database.LeadConvert> leadConverts = new List<Database.LeadConvert>();
-        
+
+        // Process each conversion request individually to handle DMLOptions per request
         for (LeadConvertRequest request : requests) {
             Database.LeadConvert lc = new Database.LeadConvert();
-            
+
             // Required field
             lc.setLeadId(request.leadId);
-            
+
             // Set converted status (use default if not provided)
-            String statusToUse = String.isNotBlank(request.convertedStatus) 
-                ? request.convertedStatus 
+            String statusToUse = String.isNotBlank(request.convertedStatus)
+                ? request.convertedStatus
                 : defaultConvertedStatus;
             lc.setConvertedStatus(statusToUse);
-            
+
             // Optional: Existing account to merge into
             if (request.accountId != null) {
                 lc.setAccountId(request.accountId);
             }
-            
+
             // Optional: Existing contact to merge into
             if (request.contactId != null) {
                 lc.setContactId(request.contactId);
             }
-            
+
             // Optional: Custom opportunity name
             if (String.isNotBlank(request.opportunityName)) {
                 lc.setOpportunityName(request.opportunityName);
             }
-            
+
             // Optional: Skip opportunity creation
             if (request.doNotCreateOpportunity != null && request.doNotCreateOpportunity) {
                 lc.setDoNotCreateOpportunity(true);
             }
-            
+
             // Optional: Set owner for new records
             if (request.ownerId != null) {
                 lc.setOwnerId(request.ownerId);
             }
-            
+
             // Optional: Send notification email
             if (request.sendNotificationEmail != null && request.sendNotificationEmail) {
                 lc.setSendNotificationEmail(true);
             }
-            
+
             // Optional: Overwrite lead source on contact
             if (request.overwriteLeadSource != null && request.overwriteLeadSource) {
                 lc.setOverwriteLeadSource(true);
             }
-            
-            leadConverts.add(lc);
-        }
-        
-        // Perform the conversions
-        List<Database.LeadConvertResult> convertResults = Database.convertLead(leadConverts, false);
-        
-        // Process results
-        for (Database.LeadConvertResult lcr : convertResults) {
+
+            // Perform the conversion with or without duplicate rule bypass
+            Database.LeadConvertResult lcr;
+            if (request.bypassDuplicateRules != null && request.bypassDuplicateRules) {
+                // Bypass duplicate detection rules
+                Database.DMLOptions dmlOptions = new Database.DMLOptions();
+                dmlOptions.DuplicateRuleHeader.allowSave = true;
+                dmlOptions.DuplicateRuleHeader.runAsCurrentUser = true;
+                lcr = Database.convertLead(lc, dmlOptions);
+            } else {
+                // Standard conversion without bypass
+                List<Database.LeadConvertResult> lcrList = Database.convertLead(new List<Database.LeadConvert>{lc}, false);
+                lcr = lcrList[0];
+            }
+
+            // Process result
             LeadConvertResult result = new LeadConvertResult();
             result.isSuccess = lcr.isSuccess();
-            
+            result.leadId = request.leadId; // Always return the original lead ID
+
             if (lcr.isSuccess()) {
                 result.opportunityId = lcr.getOpportunityId();
                 result.accountId = lcr.getAccountId();
@@ -143,10 +155,10 @@ public with sharing class LeadConverterInvocable {
                 }
                 result.errorMessage = String.join(errorMessages, '; ');
             }
-            
+
             results.add(result);
         }
-        
+
         return results;
     }
 

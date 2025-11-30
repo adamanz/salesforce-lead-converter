@@ -491,5 +491,143 @@ private class LeadConverterInvocableTest {
 
         System.assertEquals(true, results[0].isSuccess, 'Conversion should be successful with empty converted status');
     }
+
+    /**
+     * @description Test that leadId is returned in result for successful conversion
+     */
+    @IsTest
+    static void testLeadIdReturnedOnSuccess() {
+        Lead testLead = new Lead(
+            FirstName = 'Kevin',
+            LastName = 'Brown',
+            Company = 'Brown Co',
+            Email = 'kevin.brown@brownco.com'
+        );
+        insert testLead;
+
+        LeadConverterInvocable.LeadConvertRequest request = new LeadConverterInvocable.LeadConvertRequest();
+        request.leadId = testLead.Id;
+
+        Test.startTest();
+        List<LeadConverterInvocable.LeadConvertResult> results =
+            LeadConverterInvocable.convertLeads(new List<LeadConverterInvocable.LeadConvertRequest>{request});
+        Test.stopTest();
+
+        System.assertEquals(true, results[0].isSuccess, 'Conversion should be successful');
+        System.assertEquals(testLead.Id, results[0].leadId, 'Lead ID should be returned in result');
+    }
+
+    /**
+     * @description Test that leadId is returned in result even when conversion fails
+     */
+    @IsTest
+    static void testLeadIdReturnedOnFailure() {
+        // Create a lead and convert it first
+        Lead testLead = new Lead(
+            FirstName = 'Laura',
+            LastName = 'Davis',
+            Company = 'Davis Inc'
+        );
+        insert testLead;
+
+        // Convert it once
+        Database.LeadConvert lc = new Database.LeadConvert();
+        lc.setLeadId(testLead.Id);
+        LeadStatus convertedStatus = [SELECT ApiName FROM LeadStatus WHERE IsConverted = true LIMIT 1];
+        lc.setConvertedStatus(convertedStatus.ApiName);
+        Database.convertLead(lc);
+
+        // Now try to convert it again via our invocable - this should fail
+        LeadConverterInvocable.LeadConvertRequest request = new LeadConverterInvocable.LeadConvertRequest();
+        request.leadId = testLead.Id;
+
+        Test.startTest();
+        List<LeadConverterInvocable.LeadConvertResult> results =
+            LeadConverterInvocable.convertLeads(new List<LeadConverterInvocable.LeadConvertRequest>{request});
+        Test.stopTest();
+
+        System.assertEquals(false, results[0].isSuccess, 'Conversion should fail');
+        System.assertEquals(testLead.Id, results[0].leadId, 'Lead ID should still be returned even on failure');
+    }
+
+    /**
+     * @description Test lead conversion with bypass duplicate rules flag set to true
+     */
+    @IsTest
+    static void testLeadConversionWithBypassDuplicateRules() {
+        Lead testLead = new Lead(
+            FirstName = 'Mike',
+            LastName = 'Jones',
+            Company = 'Jones LLC',
+            Email = 'mike.jones@jonesllc.com'
+        );
+        insert testLead;
+
+        LeadConverterInvocable.LeadConvertRequest request = new LeadConverterInvocable.LeadConvertRequest();
+        request.leadId = testLead.Id;
+        request.bypassDuplicateRules = true;
+
+        Test.startTest();
+        List<LeadConverterInvocable.LeadConvertResult> results =
+            LeadConverterInvocable.convertLeads(new List<LeadConverterInvocable.LeadConvertRequest>{request});
+        Test.stopTest();
+
+        System.assertEquals(true, results[0].isSuccess, 'Conversion should be successful with bypass duplicate rules');
+        System.assertNotEquals(null, results[0].accountId, 'Account ID should be populated');
+        System.assertNotEquals(null, results[0].contactId, 'Contact ID should be populated');
+        System.assertEquals(testLead.Id, results[0].leadId, 'Lead ID should be returned');
+    }
+
+    /**
+     * @description Test lead conversion with bypass duplicate rules flag set to false (standard behavior)
+     */
+    @IsTest
+    static void testLeadConversionWithBypassDuplicateRulesFalse() {
+        Lead testLead = new Lead(
+            FirstName = 'Nancy',
+            LastName = 'Smith',
+            Company = 'Smith Co',
+            Email = 'nancy.smith@smithco.com'
+        );
+        insert testLead;
+
+        LeadConverterInvocable.LeadConvertRequest request = new LeadConverterInvocable.LeadConvertRequest();
+        request.leadId = testLead.Id;
+        request.bypassDuplicateRules = false;
+
+        Test.startTest();
+        List<LeadConverterInvocable.LeadConvertResult> results =
+            LeadConverterInvocable.convertLeads(new List<LeadConverterInvocable.LeadConvertRequest>{request});
+        Test.stopTest();
+
+        System.assertEquals(true, results[0].isSuccess, 'Conversion should be successful with bypass = false');
+        System.assertEquals(testLead.Id, results[0].leadId, 'Lead ID should be returned');
+    }
+
+    /**
+     * @description Test lead conversion with null bypass duplicate rules flag (should use standard behavior)
+     */
+    @IsTest
+    static void testLeadConversionWithNullBypassDuplicateRules() {
+        Lead testLead = new Lead(
+            FirstName = 'Oscar',
+            LastName = 'Adams',
+            Company = 'Adams Corp',
+            Email = 'oscar.adams@adamscorp.com'
+        );
+        insert testLead;
+
+        LeadConverterInvocable.LeadConvertRequest request = new LeadConverterInvocable.LeadConvertRequest();
+        request.leadId = testLead.Id;
+        request.bypassDuplicateRules = null;
+
+        Test.startTest();
+        List<LeadConverterInvocable.LeadConvertResult> results =
+            LeadConverterInvocable.convertLeads(new List<LeadConverterInvocable.LeadConvertRequest>{request});
+        Test.stopTest();
+
+        System.assertEquals(true, results[0].isSuccess, 'Conversion should be successful with null bypass flag');
+        System.assertEquals(testLead.Id, results[0].leadId, 'Lead ID should be returned');
+    }
 }
 
