@@ -16,6 +16,7 @@ A Salesforce Apex invocable action for converting leads to accounts, contacts, a
 - Bulk conversion support
 - Auto-detection of converted status
 - Comprehensive error handling
+- Bypass duplicate detection rules
 
 ## Deployment
 
@@ -87,6 +88,7 @@ sf apex run test -n LeadConverterInvocableTest -o MyOrg -r human
 | `Owner ID` | ID | No | Owner for new records. Defaults to lead owner |
 | `Send Notification Email` | Boolean | No | Send email notification to new owner |
 | `Overwrite Lead Source` | Boolean | No | Overwrite LeadSource on target contact when merging |
+| `Bypass Duplicate Rules` | Boolean | No | Set to `true` to bypass duplicate detection rules during conversion |
 
 ## Output Variables
 
@@ -97,6 +99,7 @@ sf apex run test -n LeadConverterInvocableTest -o MyOrg -r human
 | `Opportunity ID` | ID | The ID of the created opportunity (null if skipped) |
 | `Is Success` | Boolean | Whether the conversion was successful |
 | `Error Message` | Text | Error details if conversion failed |
+| `Lead ID` | ID | The original Lead ID (returned on both success and failure) |
 
 ## Usage Examples
 
@@ -128,6 +131,10 @@ Set `Owner ID` to assign the converted records to a specific user. Enable `Send 
 
 Provide both `Account ID` and `Contact ID` to merge the lead into existing records. The contact must belong to the specified account. Enable `Overwrite Lead Source` to update the contact's LeadSource field.
 
+### Bypass Duplicate Detection
+
+Set `Bypass Duplicate Rules` = `true` to force conversion even when duplicate detection rules would normally block it. This uses `Database.DMLOptions.DuplicateRuleHeader.allowSave` to bypass the org's duplicate rules.
+
 ## Error Handling
 
 The action uses partial success mode, meaning:
@@ -141,6 +148,9 @@ Common error scenarios:
 - Invalid Account/Contact ID
 - Contact not associated with specified Account
 - Missing required fields on Lead
+- Duplicate detected (use `Bypass Duplicate Rules` to override)
+
+**Note:** The `Lead ID` output is always returned, even when conversion fails. This allows you to identify which lead caused the error in your Flow's error handling path.
 
 ## API Version
 
