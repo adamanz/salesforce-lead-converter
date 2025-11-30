@@ -1,5 +1,9 @@
 # Lead Converter Invocable
 
+[![Salesforce API](https://img.shields.io/badge/Salesforce%20API-63.0-blue)](https://developer.salesforce.com/docs/atlas.en-us.api_rest.meta/api_rest/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Apex](https://img.shields.io/badge/Apex-Invocable-blueviolet)](https://developer.salesforce.com/docs/atlas.en-us.apexcode.meta/apexcode/apex_classes_annotation_InvocableMethod.htm)
+
 A Salesforce Apex invocable action for converting leads to accounts, contacts, and opportunities. Designed for use in Salesforce Flows with full parameter flexibility.
 
 ## Features

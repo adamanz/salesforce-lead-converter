@@ -1,0 +1,33 @@
+# Salesforce
+.sf/
+.sfdx/
+.localdevserver/
+deploy-options.json
+
+# Logs
+*.log
+logs/
+
+# IDE
+.idea/
+.vscode/
+*.sublime-*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node (if using plugins)
+node_modules/
+package-lock.json
+
+# Test results
+test-results/
+coverage/
+
+# Scratch org snapshots
+*.snapshot
+
+# Local environment
+.env
+.env.local
